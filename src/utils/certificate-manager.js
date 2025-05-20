@@ -142,6 +142,19 @@ class CertificateManager {
           this.logger.info(`PKI directory does not exist, will initialize: ${pkiDir}`);
         }
 
+        // --- Self‑healing block: recreate PKI if essential config is missing ---
+        if (pkiExists) {
+          const cnfFile = path.join(pkiDir, 'openssl-easyrsa.cnf');
+          try {
+            await fs.access(cnfFile);
+          } catch (err) {
+            this.logger.warn('PKI exists but openssl-easyrsa.cnf is missing – rebuilding PKI...');
+            await exec(`rm -rf "${pkiDir}"`);
+            pkiExists = false; // force fresh init‑pki below
+          }
+        }
+        // ----------------------------------------------------------------------
+
         // Even if PKI exists, we'll check if it has a complete CA setup
         if (pkiExists) {
           try {
