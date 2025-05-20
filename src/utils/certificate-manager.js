@@ -149,7 +149,7 @@ class CertificateManager {
             await fs.access(cnfFile);
           } catch (err) {
             this.logger.warn('PKI exists but openssl-easyrsa.cnf is missing – rebuilding PKI...');
-            await exec(`rm -rf "${pkiDir}"`);
+            await exec(`find "${pkiDir}" -mindepth 1 -delete`);
             pkiExists = false; // force fresh init‑pki below
           }
         }
