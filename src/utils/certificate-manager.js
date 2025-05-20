@@ -460,7 +460,7 @@ class CertificateManager {
 `client
 dev tun
 proto ${config.vpn.protocol}
-remote YOUR_SERVER_IP ${config.vpn.port}
+remote ${config.vpn.host} ${config.vpn.port}
 resolv-retry infinite
 nobind
 persist-key
