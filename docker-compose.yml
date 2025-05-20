@@ -11,7 +11,7 @@ services:
       - /dev/net/tun
     volumes:
       - ./config:/etc/openvpn
-      - ./easy-rsa/pki:/app/easy-rsa/pki
+      - ./easy-rsa:/app/easy-rsa
     environment:
       - NODE_ENV=production
       - VPN_SUBNET=10.8.0.0
