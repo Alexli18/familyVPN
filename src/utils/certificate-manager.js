@@ -124,16 +124,16 @@ class CertificateManager {
         if (!this.easyrsaPath) {
           this.easyrsaPath = await this.findEasyRsaPath();
         }
-        
+
         this.logger.info(`Using Easy-RSA path: ${this.easyrsaPath}`);
-        
+
         // Ensure certificates directory exists
         await mkdirp(config.certificates.dir);
-        
+
         // Check if PKI already exists
         const pkiDir = path.join(this.easyrsaPath, 'pki');
         let pkiExists = false;
-        
+
         try {
           await fs.access(pkiDir);
           this.logger.info(`PKI directory already exists at: ${pkiDir}`);
@@ -141,14 +141,14 @@ class CertificateManager {
         } catch (err) {
           this.logger.info(`PKI directory does not exist, will initialize: ${pkiDir}`);
         }
-        
+
         // Even if PKI exists, we'll check if it has a complete CA setup
         if (pkiExists) {
           try {
             const serialFile = path.join(pkiDir, 'serial');
             await fs.access(serialFile);
             this.logger.info('PKI appears to be properly initialized with CA');
-            
+
             // Check for DH params too
             const dhFile = path.join(pkiDir, 'dh.pem');
             try {
@@ -162,10 +162,10 @@ class CertificateManager {
             this.logger.info('PKI directory exists but CA is not initialized, will rebuild');
           }
         }
-        
+
         // Command to execute based on platform
         let command;
-        
+
         // If PKI doesn't exist, initialize it first
         if (!pkiExists) {
           if (this.platform === 'win32') {  // Windows
@@ -179,34 +179,64 @@ class CertificateManager {
               ./easyrsa init-pki
             `;
           }
-            
+
           // Execute the command
           this.logger.info('Initializing PKI...');
           const { stdout, stderr } = await exec(command);
           if (stdout) this.logger.info(`PKI init output: ${stdout}`);
           if (stderr) this.logger.warn(`PKI init stderr: ${stderr}`);
+
+          // After PKI init, check if ca.crt exists, build CA if missing
+          // Check if CA cert exists
+          const caFile = path.join(pkiDir, 'ca.crt');
+          try {
+            await fs.access(caFile);
+            this.logger.info('CA certificate already exists, skipping build-ca');
+          } catch (err) {
+            this.logger.info('CA certificate not found, running build-ca...');
+
+            if (this.platform === 'win32') {
+              command = `
+                cd /d "${this.easyrsaPath}" &&
+                easyrsa build-ca nopass
+              `;
+            } else {
+              command = `
+                cd "${this.easyrsaPath}" &&
+                ./easyrsa build-ca nopass
+              `;
+            }
+
+            const caResult = await exec(command);
+            if (caResult.stdout) this.logger.info(`CA build output: ${caResult.stdout}`);
+            if (caResult.stderr) this.logger.warn(`CA build stderr: ${caResult.stderr}`);
+          }
         } else {
           this.logger.info('Skipping init-pki as directory already exists');
+          // If PKI exists, still check if ca.crt is missing and build if needed
+          const caFile = path.join(pkiDir, 'ca.crt');
+          try {
+            await fs.access(caFile);
+            this.logger.info('CA certificate already exists, skipping build-ca');
+          } catch (err) {
+            this.logger.info('CA certificate not found, running build-ca...');
+            if (this.platform === 'win32') {
+              command = `
+                cd /d "${this.easyrsaPath}" &&
+                easyrsa build-ca nopass
+              `;
+            } else {
+              command = `
+                cd "${this.easyrsaPath}" &&
+                ./easyrsa build-ca nopass
+              `;
+            }
+            const caResult = await exec(command);
+            if (caResult.stdout) this.logger.info(`CA build output: ${caResult.stdout}`);
+            if (caResult.stderr) this.logger.warn(`CA build stderr: ${caResult.stderr}`);
+          }
         }
-        
-        // Now build CA
-        if (this.platform === 'win32') {  // Windows
-          command = `
-            cd /d "${this.easyrsaPath}" &&
-            easyrsa build-ca nopass
-          `;
-        } else {  // macOS and Linux
-          command = `
-            cd "${this.easyrsaPath}" &&
-            ./easyrsa build-ca nopass
-          `;
-        }
-        
-        this.logger.info('Building CA...');
-        const caResult = await exec(command);
-        if (caResult.stdout) this.logger.info(`CA build output: ${caResult.stdout}`);
-        if (caResult.stderr) this.logger.warn(`CA build stderr: ${caResult.stderr}`);
-        
+
         // Generate DH parameters
         if (this.platform === 'win32') {  // Windows
           command = `
@@ -219,12 +249,12 @@ class CertificateManager {
             ./easyrsa gen-dh
           `;
         }
-        
+
         this.logger.info('Generating DH parameters (this may take a while)...');
         const dhResult = await exec(command);
         if (dhResult.stdout) this.logger.info(`DH gen output: ${dhResult.stdout}`);
         if (dhResult.stderr) this.logger.warn(`DH gen stderr: ${dhResult.stderr}`);
-        
+
         this.logger.info('PKI initialized successfully');
         return true;
       } catch (error) {
