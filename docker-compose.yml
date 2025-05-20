@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   vpn-server:
     build: .
@@ -13,9 +11,7 @@ services:
       - /dev/net/tun
     volumes:
       - ./config:/etc/openvpn
-      # persist PKI in both locations Easy‑RSA and OpenVPN expect
       - ./easy-rsa/pki:/app/easy-rsa/pki
-      - ./easy-rsa/pki:/etc/openvpn/certificates/pki
     environment:
       - NODE_ENV=production
       - VPN_SUBNET=10.8.0.0
