@@ -6,11 +6,11 @@ module.exports = {
     protocol: 'udp'
   },
   certificates: {
-    dir: process.env.VPN_CERT_DIR || '/Users/rutli/.privatevpn/certificates',
+    dir: process.env.VPN_CERT_DIR || '/etc/openvpn/certificates',
     serverCertName: 'server',
     validityDays: 3650 // 10 years
   },
   config: {
-    path: process.env.VPN_CONFIG_DIR || '/Users/rutli/.privatevpn/config'
+    path: process.env.VPN_CONFIG_DIR || '/etc/openvpn'
   }
 };
