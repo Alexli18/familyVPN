@@ -150,7 +150,15 @@ class CertificateManager {
           } catch (err) {
             this.logger.warn('PKI exists but openssl-easyrsa.cnf is missing – rebuilding PKI...');
             await exec(`find "${pkiDir}" -mindepth 1 -delete`);
-            pkiExists = false; // force fresh init‑pki below
+            // Re‑initialize PKI non‑interactively (auto‑answer "yes")
+            const initCmd = this.platform === 'win32'
+              ? `cd /d "${this.easyrsaPath}" && echo yes | easyrsa init-pki`
+              : `cd "${this.easyrsaPath}" && echo yes | EASYRSA_BATCH=1 ./easyrsa init-pki`;
+            const initRes = await exec(initCmd);
+            if (initRes.stdout) this.logger.info(`Self‑heal init‑pki output: ${initRes.stdout}`);
+            if (initRes.stderr) this.logger.warn(`Self‑heal init‑pki stderr: ${initRes.stderr}`);
+            // PKI is now freshly re‑initialized
+            pkiExists = true;
           }
         }
         // ----------------------------------------------------------------------
