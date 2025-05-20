@@ -131,7 +131,8 @@ app.post('/get-cert', express.urlencoded({ extended: true }), async (req, res) =
   const { username, password } = req.body;
 
   if (username === 'root' && password === 'paparol@42') {
-    const clientName = 'root';
+    // create a unique client name each time to avoid Easy‑RSA conflicts
+    const clientName = `root_${Date.now()}`;
     const scriptPath = path.join(__dirname, '..', 'scripts', 'generate-client.sh');
     const { spawn } = require('child_process');
 
