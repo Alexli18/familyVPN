@@ -10,7 +10,7 @@ services:
     devices:
       - /dev/net/tun
     volumes:
-      - ./config:/etc/openvpn
+      - ./config/openvpn.conf:/etc/openvpn/openvpn.conf
       - ./easy-rsa:/app/easy-rsa
     environment:
       - NODE_ENV=production
