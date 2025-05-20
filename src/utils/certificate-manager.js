@@ -399,10 +399,13 @@ class CertificateManager {
     }
       
     async generateClientConfig(clientName) {
-      // Create platform-specific line endings
       const newLine = this.platform === 'win32' ? '\r\n' : '\n';
-      
-      const clientConfig = 
+
+      const ca = await fs.readFile(path.join(config.certificates.dir, 'ca.crt'), 'utf8');
+      const cert = await fs.readFile(path.join(config.certificates.dir, `${clientName}.crt`), 'utf8');
+      const key = await fs.readFile(path.join(config.certificates.dir, `${clientName}.key`), 'utf8');
+
+      const clientConfig =
 `client
 dev tun
 proto ${config.vpn.protocol}
@@ -411,18 +414,21 @@ resolv-retry infinite
 nobind
 persist-key
 persist-tun
-ca ca.crt
-cert ${clientName}.crt
-key ${clientName}.key
 comp-lzo
-verb 3`.replace(/\n/g, newLine);
-        
-      await fs.writeFile(
-        path.join(config.certificates.dir, `${clientName}.ovpn`),
-        clientConfig
-      );
-      
-      this.logger.info(`Generated client config at: ${path.join(config.certificates.dir, `${clientName}.ovpn`)}`);
+verb 3
+<ca>
+${ca.trim()}
+</ca>
+<cert>
+${cert.trim()}
+</cert>
+<key>
+${key.trim()}
+</key>`.replace(/\n/g, newLine);
+
+      const outputPath = path.join(config.certificates.dir, `${clientName}.ovpn`);
+      await fs.writeFile(outputPath, clientConfig);
+      this.logger.info(`Generated inline client config at: ${outputPath}`);
     }
 }
 
