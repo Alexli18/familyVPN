@@ -1,0 +1,37 @@
+{
+  "name": "family-vpn-server",
+  "version": "1.0.0",
+  "description": "Private VPN server for family usage",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "setup": "node scripts/setup.js",
+    "clean": "node scripts/clean.js",
+    "generate-client": "node scripts/generate-client.js",
+    "bundle-client": "node scripts/bundle-client.js",
+    "test-easyrsa": "node scripts/test-easyrsa.js",
+    "init-pki": "node scripts/initialize-pki.js",
+    "fix-server-cert": "node scripts/sign-server-cert.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "winston": "^3.11.0",
+    "cross-spawn": "^7.0.3",
+    "mkdirp": "^1.0.4",
+    "rimraf": "^3.0.2",
+    "which": "^2.0.2",
+    "fs-extra": "^10.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ]
+}

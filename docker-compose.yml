@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  vpn-server:
+    build: .
+    ports:
+      - "1194:1194/udp"
+      - "3000:3000"
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun
+    volumes:
+      - ./config:/etc/openvpn
+      - ./easy-rsa/pki:/etc/openvpn/certificates/pki
+    environment:
+      - NODE_ENV=production
+      - VPN_SUBNET=10.8.0.0
+      - VPN_NETMASK=255.255.255.0
+      - VPN_CONFIG_DIR=/etc/openvpn/openvpn.conf
+    restart: unless-stopped
