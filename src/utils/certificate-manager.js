@@ -224,7 +224,7 @@ class CertificateManager {
             } else {
               command = `
                 cd "${this.easyrsaPath}" &&
-                ./easyrsa build-ca nopass
+                EASYRSA_BATCH=1 ./easyrsa build-ca nopass
               `;
             }
 
@@ -249,7 +249,7 @@ class CertificateManager {
             } else {
               command = `
                 cd "${this.easyrsaPath}" &&
-                ./easyrsa build-ca nopass
+                EASYRSA_BATCH=1 ./easyrsa build-ca nopass
               `;
             }
             const caResult = await exec(command);
