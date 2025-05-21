@@ -5,6 +5,8 @@ services:
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
     volumes:
       - ./config/openvpn.conf:/etc/openvpn/openvpn.conf
       - ./easy-rsa:/app/easy-rsa
