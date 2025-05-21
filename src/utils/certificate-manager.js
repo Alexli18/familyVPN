@@ -472,7 +472,7 @@ resolv-retry infinite
 nobind
 persist-key
 persist-tun
-comp-lzo
+compress lz4
 verb 3
 <ca>
 ${ca}
