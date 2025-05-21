@@ -452,8 +452,15 @@ class CertificateManager {
     async generateClientConfig(clientName) {
       const newLine = this.platform === 'win32' ? '\r\n' : '\n';
 
-      const ca = await fs.readFile(path.join(config.certificates.dir, 'ca.crt'), 'utf8');
-      const cert = await fs.readFile(path.join(config.certificates.dir, `${clientName}.crt`), 'utf8');
+      // read & trim to pure PEM (strip any bag attributes or comments)
+      const readPem = async (file) => {
+        const raw = await fs.readFile(file, 'utf8');
+        const match = raw.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g);
+        return match ? match.join('\n').trim() : raw.trim();
+      };
+
+      const ca = await readPem(path.join(config.certificates.dir, 'ca.crt'));
+      const cert = await readPem(path.join(config.certificates.dir, `${clientName}.crt`));
       const key = await fs.readFile(path.join(config.certificates.dir, `${clientName}.key`), 'utf8');
 
       const clientConfig =
@@ -468,10 +475,10 @@ persist-tun
 comp-lzo
 verb 3
 <ca>
-${ca.trim()}
+${ca}
 </ca>
 <cert>
-${cert.trim()}
+${cert}
 </cert>
 <key>
 ${key.trim()}
