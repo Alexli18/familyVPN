@@ -1,14 +1,10 @@
 services:
   vpn-server:
     build: .
-    ports:
-      - "1194:1194/udp"
-      - "3000:3000"
+    network_mode: "host"
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
-    devices:
-      - /dev/net/tun
     volumes:
       - ./config/openvpn.conf:/etc/openvpn/openvpn.conf
       - ./easy-rsa:/app/easy-rsa
