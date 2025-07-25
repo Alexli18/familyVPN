@@ -7,12 +7,16 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "setup": "node scripts/setup.js",
+    "setup-auth": "node scripts/setup-auth.js",
     "clean": "node scripts/clean.js",
     "generate-client": "node scripts/generate-client.js",
     "bundle-client": "node scripts/bundle-client.js",
     "test-easyrsa": "node scripts/test-easyrsa.js",
     "init-pki": "node scripts/initialize-pki.js",
-    "fix-server-cert": "node scripts/sign-server-cert.js"
+    "fix-server-cert": "node scripts/sign-server-cert.js",
+    "test": "node test/test-auth-simple.js && node test/test-security-features.js",
+    "test:auth": "node test/test-auth-simple.js",
+    "test:security": "node test/test-security-features.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -21,7 +25,13 @@
     "mkdirp": "^1.0.4",
     "rimraf": "^3.0.2",
     "which": "^2.0.2",
-    "fs-extra": "^10.1.0"
+    "fs-extra": "^10.1.0",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "express-rate-limit": "^7.1.5",
+    "express-slow-down": "^2.0.1",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

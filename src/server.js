@@ -1,24 +1,50 @@
+require('dotenv').config();
 const express = require('express');
 const { spawn } = require('child_process');
 const winston = require('winston');
 const os = require('os');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 const config = require('./config');
 const CertificateManager = require('./utils/certificate-manager');
+const AuthenticationService = require('./services/auth-service');
+const {
+  authRateLimit,
+  authSlowDown,
+  authenticateToken,
+  securityHeaders,
+  requestLogger
+} = require('./middleware/auth-middleware');
 
 const app = express();
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+    winston.format.errors({ stack: true }),
+    winston.format.json()
   ),
   transports: [
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
     new winston.transports.File({ filename: 'combined.log' }),
-    new winston.transports.Console({ format: winston.format.simple() }) // Add console logging
+    new winston.transports.Console({ 
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    })
   ]
 });
+
+// Initialize authentication service
+const authService = new AuthenticationService(logger);
+
+// Apply security middleware
+app.use(securityHeaders);
+app.use(requestLogger(logger));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
 // Initialize OpenVPN server
 async function initializeVPNServer() {
@@ -109,62 +135,248 @@ app.get('/health', (req, res) => {
 
 const fs = require('fs').promises;
 
-// Serve the form on GET
+// Authentication endpoint
+app.post('/auth/login', authRateLimit, authSlowDown, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ 
+        error: 'Username and password are required' 
+      });
+    }
+
+    const result = await authService.authenticate(username, password, req.ip);
+    
+    // Set secure HTTP-only cookies for tokens
+    res.cookie('accessToken', result.tokens.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000 // 15 minutes
+    });
+    
+    res.cookie('refreshToken', result.tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({
+      success: true,
+      message: 'Authentication successful',
+      expiresIn: result.tokens.expiresIn
+    });
+
+  } catch (error) {
+    res.status(401).json({ 
+      error: 'Authentication failed',
+      message: error.message 
+    });
+  }
+});
+
+// Token refresh endpoint
+app.post('/auth/refresh', async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token required' });
+    }
+
+    const tokens = await authService.refreshToken(refreshToken, req.ip);
+    
+    // Set new tokens in cookies
+    res.cookie('accessToken', tokens.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000
+    });
+    
+    res.cookie('refreshToken', tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({
+      success: true,
+      message: 'Token refreshed successfully',
+      expiresIn: tokens.expiresIn
+    });
+
+  } catch (error) {
+    res.status(401).json({ 
+      error: 'Token refresh failed',
+      message: error.message 
+    });
+  }
+});
+
+// Logout endpoint
+app.post('/auth/logout', (req, res) => {
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// Serve the login form on GET
 app.get('/get-cert', (req, res) => {
   res.send(`
     <html>
-      <head><title>Download VPN Config</title></head>
+      <head>
+        <title>VPN Certificate Download</title>
+        <style>
+          body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
+          .form-group { margin-bottom: 15px; }
+          label { display: block; margin-bottom: 5px; font-weight: bold; }
+          input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+          button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+          button:hover { background: #0056b3; }
+          .error { color: red; margin-top: 10px; }
+          .success { color: green; margin-top: 10px; }
+        </style>
+      </head>
       <body>
-        <h2>Authenticate to download VPN config</h2>
-        <form method="POST" action="/get-cert">
-          <label>Username: <input type="text" name="username" /></label><br/>
-          <label>Password: <input type="password" name="password" /></label><br/>
-          <button type="submit">Get Config</button>
+        <h2>🔐 VPN Certificate Download</h2>
+        <form id="loginForm">
+          <div class="form-group">
+            <label>Username:</label>
+            <input type="text" id="username" name="username" required />
+          </div>
+          <div class="form-group">
+            <label>Password:</label>
+            <input type="password" id="password" name="password" required />
+          </div>
+          <button type="submit">Authenticate & Download</button>
         </form>
+        <div id="message"></div>
+        
+        <script>
+          document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const messageDiv = document.getElementById('message');
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+              // First authenticate
+              const authResponse = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+              });
+              
+              if (!authResponse.ok) {
+                const error = await authResponse.json();
+                throw new Error(error.message || 'Authentication failed');
+              }
+              
+              messageDiv.innerHTML = '<div class="success">✅ Authentication successful! Generating certificate...</div>';
+              
+              // Then download certificate
+              const certResponse = await fetch('/api/generate-cert', {
+                method: 'POST',
+                credentials: 'include'
+              });
+              
+              if (!certResponse.ok) {
+                const error = await certResponse.json();
+                throw new Error(error.message || 'Certificate generation failed');
+              }
+              
+              // Download the certificate file
+              const blob = await certResponse.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'vpn-config.ovpn';
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+              
+              messageDiv.innerHTML = '<div class="success">✅ Certificate downloaded successfully!</div>';
+              
+            } catch (error) {
+              messageDiv.innerHTML = '<div class="error">❌ ' + error.message + '</div>';
+            }
+          });
+        </script>
       </body>
     </html>
   `);
 });
 
-// Handle form POST
-app.post('/get-cert', express.urlencoded({ extended: true }), async (req, res) => {
-  const { username, password } = req.body;
-
-  if (username === 'root' && password === 'paparol@42') {
-    // create a unique client name each time to avoid Easy‑RSA conflicts
-    const clientName = `root_${Date.now()}`;
+// Protected certificate generation endpoint
+app.post('/api/generate-cert', authenticateToken(authService), async (req, res) => {
+  try {
+    // Create a unique client name based on authenticated user and timestamp
+    const clientName = `${req.user.username}_${Date.now()}`;
     const scriptPath = path.join(__dirname, '..', 'scripts', 'generate-client.sh');
-    const { spawn } = require('child_process');
+
+    logger.info('Generating client certificate', {
+      clientName,
+      username: req.user.username,
+      clientIP: req.ip,
+      correlationId: req.correlationId
+    });
 
     const generate = spawn('bash', [scriptPath, clientName]);
 
     generate.stdout.on('data', data => {
-      logger.info(`GenerateClient STDOUT: ${data}`);
+      logger.info(`GenerateClient STDOUT: ${data}`, { correlationId: req.correlationId });
     });
 
     generate.stderr.on('data', data => {
-      logger.error(`GenerateClient STDERR: ${data}`);
+      logger.error(`GenerateClient STDERR: ${data}`, { correlationId: req.correlationId });
     });
 
     generate.on('close', async (code) => {
       if (code !== 0) {
-        logger.error(`generate-client.sh exited with code ${code}`);
-        return res.status(500).send('Failed to generate certificate');
+        logger.error(`generate-client.sh exited with code ${code}`, { 
+          correlationId: req.correlationId,
+          clientName 
+        });
+        return res.status(500).json({ error: 'Failed to generate certificate' });
       }
 
       try {
         const certPath = path.join(config.certificates.dir, `${clientName}.ovpn`);
         const certData = await fs.readFile(certPath, 'utf8');
+        
+        logger.info('Certificate generated successfully', {
+          clientName,
+          username: req.user.username,
+          clientIP: req.ip,
+          correlationId: req.correlationId
+        });
+        
         res.setHeader('Content-Type', 'application/octet-stream');
         res.setHeader('Content-Disposition', `attachment; filename="${clientName}.ovpn"`);
         return res.send(certData);
+        
       } catch (err) {
-        logger.error(`Failed to read generated certificate: ${err.message}`);
-        return res.status(500).send('Certificate read failed');
+        logger.error(`Failed to read generated certificate: ${err.message}`, { 
+          correlationId: req.correlationId,
+          clientName 
+        });
+        return res.status(500).json({ error: 'Certificate read failed' });
       }
     });
-  } else {
-    return res.status(403).send('Unauthorized');
+
+  } catch (error) {
+    logger.error('Certificate generation error', {
+      error: error.message,
+      username: req.user.username,
+      clientIP: req.ip,
+      correlationId: req.correlationId
+    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
