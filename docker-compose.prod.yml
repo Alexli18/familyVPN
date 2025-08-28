@@ -1,0 +1,50 @@
+services:
+  vpn-server:
+    build: .
+    container_name: family-vpn-server-prod
+    user: "0:0"  # Run as root for VPN functionality
+    ports:
+      - "1194:1194/udp"
+      - "443:3000/tcp"  # Use port 443 for HTTPS in production
+    cap_add:
+      - NET_ADMIN
+    cap_drop:
+      - ALL
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./easy-rsa:/app/easy-rsa
+      - vpn-certificates:/app/certificates
+      - vpn-logs:/app/logs
+      - /etc/letsencrypt:/etc/letsencrypt:ro  # For SSL certificates
+    environment:
+      - VPN_SUBNET=10.8.0.0
+      - VPN_NETMASK=255.255.255.0
+      - VPN_CONFIG_DIR=/app/config
+      - VPN_CERT_DIR=/app/certificates
+      - VPN_HOST=YOUR_SERVER_PUBLIC_IP
+      - LOG_DIR=/app/logs
+      - LOGGER=1
+      - DOCKER_ENV=true
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "https://localhost:3000/health", "--insecure"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  vpn-certificates:
+    driver: local
+  vpn-logs:
+    driver: local

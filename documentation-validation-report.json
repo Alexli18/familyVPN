@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-08-28T22:11:13.312Z",
+  "stats": {
+    "filesChecked": 96,
+    "linksChecked": 1160,
+    "codeBlocksChecked": 1795,
+    "translationsChecked": 45
+  },
+  "errors": [],
+  "warnings": [],
+  "summary": {
+    "totalIssues": 0,
+    "criticalIssues": 0,
+    "passed": true
+  }
+}

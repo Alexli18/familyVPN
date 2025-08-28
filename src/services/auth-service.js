@@ -1,11 +1,10 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const fs = require('fs').promises;
-const path = require('path');
 
 class AuthenticationService {
-  constructor(logger) {
-    this.logger = logger;
+  constructor(loggingService, basicHealthService) {
+    this.loggingService = loggingService;
+    this.basicHealthService = basicHealthService;
     this.saltRounds = 12;
     this.jwtSecret = process.env.JWT_SECRET || this.generateSecretKey();
     this.jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || this.generateSecretKey();
@@ -14,8 +13,8 @@ class AuthenticationService {
     
     // In-memory store for failed attempts (in production, use Redis or database)
     this.failedAttempts = new Map();
-    this.maxFailedAttempts = 5;
-    this.lockoutDuration = 15 * 60 * 1000; // 15 minutes
+    this.maxFailedAttempts = parseInt(process.env.MAX_FAILED_ATTEMPTS) || 5;
+    this.lockoutDuration = parseInt(process.env.LOCKOUT_DURATION) || 15 * 60 * 1000; // 15 minutes
   }
 
   generateSecretKey() {
@@ -26,7 +25,7 @@ class AuthenticationService {
     try {
       return await bcrypt.hash(password, this.saltRounds);
     } catch (error) {
-      this.logger.error('Password hashing failed', { error: error.message });
+      this.loggingService.error('Password hashing failed', { error: error.message });
       throw new Error('Password hashing failed');
     }
   }
@@ -35,22 +34,22 @@ class AuthenticationService {
     try {
       return await bcrypt.compare(password, hashedPassword);
     } catch (error) {
-      this.logger.error('Password verification failed', { error: error.message });
+      this.loggingService.error('Password verification failed', { error: error.message });
       throw new Error('Password verification failed');
     }
   }
 
   async authenticate(username, password, clientIP) {
-    const correlationId = this.generateCorrelationId();
+    const startTime = Date.now();
     
     try {
       // Check if account is locked
       if (this.isAccountLocked(username)) {
-        this.logger.warn('Authentication attempt on locked account', {
-          username,
-          clientIP,
-          correlationId
+        this.loggingService.logAuthenticationEvent('LOCKED_ACCOUNT_ATTEMPT', username, clientIP, false, {
+          reason: 'Account temporarily locked'
         });
+        
+        this.basicHealthService.recordAuthAttempt('locked', username, clientIP);
         throw new Error('Account temporarily locked due to too many failed attempts');
       }
 
@@ -59,19 +58,21 @@ class AuthenticationService {
       const validPasswordHash = process.env.VPN_PASSWORD_HASH;
 
       if (!validUsername || !validPasswordHash) {
-        this.logger.error('Authentication credentials not configured', { correlationId });
+        this.loggingService.error('Authentication credentials not configured');
         throw new Error('Authentication system not properly configured');
       }
 
       // Verify username and password
       if (username !== validUsername) {
-        await this.recordFailedAttempt(username, clientIP, correlationId);
+        this.recordFailedAttempt(username, clientIP);
+        this.basicHealthService.recordAuthAttempt('failed', username, clientIP);
         throw new Error('Invalid credentials');
       }
 
       const isValidPassword = await this.verifyPassword(password, validPasswordHash);
       if (!isValidPassword) {
-        await this.recordFailedAttempt(username, clientIP, correlationId);
+        this.recordFailedAttempt(username, clientIP);
+        this.basicHealthService.recordAuthAttempt('failed', username, clientIP);
         throw new Error('Invalid credentials');
       }
 
@@ -81,25 +82,23 @@ class AuthenticationService {
       // Generate tokens
       const tokens = await this.generateTokens(username, clientIP);
       
-      this.logger.info('Successful authentication', {
-        username,
-        clientIP,
-        correlationId
+      this.loggingService.logAuthenticationEvent('SUCCESS', username, clientIP, true, {
+        tokenExpiry: this.tokenExpiry
       });
+      
+      this.basicHealthService.recordAuthAttempt('success', username, clientIP);
 
       return {
         success: true,
-        tokens,
-        correlationId
+        tokens
       };
 
     } catch (error) {
-      this.logger.warn('Authentication failed', {
-        username,
-        clientIP,
+      this.loggingService.logAuthenticationEvent('FAILED', username, clientIP, false, {
         error: error.message,
-        correlationId
+        duration: (Date.now() - startTime) / 1000
       });
+      
       throw error;
     }
   }
@@ -139,6 +138,10 @@ class AuthenticationService {
 
       // Verify client IP matches (optional security measure)
       if (process.env.ENFORCE_IP_VALIDATION === 'true' && decoded.clientIP !== clientIP) {
+        this.loggingService.logAuthenticationEvent('TOKEN_IP_MISMATCH', decoded.username, clientIP, false, {
+          tokenIP: decoded.clientIP,
+          requestIP: clientIP
+        });
         throw new Error('Token IP mismatch');
       }
 
@@ -147,10 +150,10 @@ class AuthenticationService {
         decoded
       };
     } catch (error) {
-      this.logger.warn('Token validation failed', {
-        error: error.message,
-        clientIP
+      this.loggingService.logAuthenticationEvent('TOKEN_VALIDATION_FAILED', 'unknown', clientIP, false, {
+        error: error.message
       });
+      
       return {
         valid: false,
         error: error.message
@@ -167,28 +170,31 @@ class AuthenticationService {
 
       // Verify client IP matches
       if (process.env.ENFORCE_IP_VALIDATION === 'true' && decoded.clientIP !== clientIP) {
+        this.loggingService.logAuthenticationEvent('REFRESH_TOKEN_IP_MISMATCH', decoded.username, clientIP, false, {
+          tokenIP: decoded.clientIP,
+          requestIP: clientIP
+        });
         throw new Error('Refresh token IP mismatch');
       }
 
       // Generate new tokens
       const tokens = await this.generateTokens(decoded.username, clientIP);
       
-      this.logger.info('Token refreshed successfully', {
-        username: decoded.username,
-        clientIP
+      this.loggingService.logAuthenticationEvent('TOKEN_REFRESH_SUCCESS', decoded.username, clientIP, true, {
+        newTokenExpiry: this.tokenExpiry
       });
 
       return tokens;
     } catch (error) {
-      this.logger.warn('Token refresh failed', {
-        error: error.message,
-        clientIP
+      this.loggingService.logAuthenticationEvent('TOKEN_REFRESH_FAILED', 'unknown', clientIP, false, {
+        error: error.message
       });
+      
       throw new Error('Invalid refresh token');
     }
   }
 
-  recordFailedAttempt(username, clientIP, correlationId) {
+  recordFailedAttempt(username, clientIP) {
     const key = `${username}:${clientIP}`;
     const attempts = this.failedAttempts.get(key) || { count: 0, lastAttempt: Date.now() };
     
@@ -197,11 +203,10 @@ class AuthenticationService {
     
     this.failedAttempts.set(key, attempts);
     
-    this.logger.warn('Failed authentication attempt recorded', {
+    this.loggingService.warn('Failed authentication attempt recorded', {
       username,
       clientIP,
-      attemptCount: attempts.count,
-      correlationId
+      attemptCount: attempts.count
     });
 
     // Clean up old entries periodically
@@ -241,9 +246,7 @@ class AuthenticationService {
     }
   }
 
-  generateCorrelationId() {
-    return require('crypto').randomBytes(16).toString('hex');
-  }
+
 
   // Utility method to create initial admin user hash
   static async createPasswordHash(password) {

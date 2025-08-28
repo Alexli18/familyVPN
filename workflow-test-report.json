@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-08-25T20:12:07.243Z",
+  "allPassed": true,
+  "results": [
+    {
+      "workflow": "Beginner User",
+      "success": true,
+      "description": "New user can follow complete setup process"
+    },
+    {
+      "workflow": "Russian User",
+      "success": true,
+      "description": "Russian user can follow complete setup process"
+    },
+    {
+      "workflow": "Advanced User",
+      "success": true,
+      "description": "Advanced user can access detailed technical information"
+    },
+    {
+      "workflow": "Troubleshooting",
+      "success": true,
+      "description": "Users can find help when things go wrong"
+    },
+    {
+      "workflow": "Configuration",
+      "success": true,
+      "description": "All required configuration documentation exists"
+    },
+    {
+      "workflow": "Deployment",
+      "success": true,
+      "description": "Multiple deployment options are documented"
+    },
+    {
+      "workflow": "Content Quality",
+      "success": true,
+      "description": "Documentation has adequate content depth"
+    }
+  ],
+  "errors": [],
+  "summary": {
+    "totalWorkflows": 7,
+    "passed": 7,
+    "failed": 0,
+    "totalIssues": 0
+  }
+}

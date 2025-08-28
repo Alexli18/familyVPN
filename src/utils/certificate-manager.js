@@ -5,23 +5,49 @@ const path = require('path');
 const os = require('os');
 const mkdirp = require('mkdirp');
 const config = require('../config');
+const FilesystemHelper = require('./filesystem-helper');
 
 class CertificateManager {
     constructor(logger) {
       this.logger = logger || console;
+      this.filesystemHelper = new FilesystemHelper(logger);
       this.logger.info('Initializing CertificateManager...');
-      this.logger.info(`Certificates directory: ${config.certificates.dir}`);
+      this.logger.info(`Initial certificates directory: ${config.certificates.dir}`);
       
-      // Make sure directories exist
-      mkdirp.sync(config.certificates.dir);
-      this.logger.info('Ensured certificates directory exists');
-      
-      this.pkiPath = path.join(config.certificates.dir, 'pki');
       this.platform = os.platform();
       this.logger.info(`Platform detected: ${this.platform}`);
       
-      // Default to the project's easy-rsa directory
-      this.easyrsaPath = path.join(process.cwd(), 'easy-rsa');
+      // Initialize directories asynchronously
+      this.initPromise = this.initializeDirectories();
+    }
+
+    async initializeDirectories() {
+      try {
+        // Check filesystem status first
+        const fsStatus = await this.filesystemHelper.checkFilesystemStatus();
+        this.logger.info('Filesystem status:', fsStatus);
+
+        if (fsStatus.recommendations.length > 0) {
+          this.logger.warn('Filesystem recommendations:');
+          fsStatus.recommendations.forEach(rec => this.logger.warn(`  - ${rec}`));
+        }
+
+        // Setup directories with fallback handling
+        const directories = await this.filesystemHelper.setupDirectories(config);
+        
+        this.pkiPath = path.join(config.certificates.dir, 'pki');
+        this.easyrsaPath = directories.easyrsa || path.join(process.cwd(), 'easy-rsa');
+        
+        this.logger.info('Directory initialization complete');
+        this.logger.info(`Certificates directory: ${config.certificates.dir}`);
+        this.logger.info(`Config directory: ${config.config.path}`);
+        this.logger.info(`Easy-RSA directory: ${this.easyrsaPath}`);
+        
+        return directories;
+      } catch (error) {
+        this.logger.error(`Failed to initialize directories: ${error.message}`);
+        throw error;
+      }
     }
 
     async findEasyRsaPath() {
@@ -88,8 +114,17 @@ class CertificateManager {
       this.logger.info(`Downloading Easy-RSA to ${targetPath}...`);
       
       try {
-        // Create the directory if it doesn't exist
-        await mkdirp(targetPath);
+        // Create the directory if it doesn't exist, with fallback handling
+        try {
+          await mkdirp(targetPath);
+        } catch (mkdirError) {
+          this.logger.warn(`Cannot create target path ${targetPath}: ${mkdirError.message}`);
+          // Try using a relative path in current working directory
+          const fallbackPath = path.join(process.cwd(), 'easy-rsa');
+          this.logger.info(`Trying fallback path: ${fallbackPath}`);
+          await mkdirp(fallbackPath);
+          targetPath = fallbackPath;
+        }
         
         if (this.platform === 'win32') {  // Windows
           // Windows download logic (omitted for brevity)
@@ -120,6 +155,9 @@ class CertificateManager {
 
     async initializePKI() {
       try {
+        // Wait for directory initialization to complete
+        await this.initPromise;
+        
         // If we don't have a path yet, find it
         if (!this.easyrsaPath) {
           this.easyrsaPath = await this.findEasyRsaPath();
@@ -288,6 +326,9 @@ class CertificateManager {
 
     async generateServerCertificates() {
       try {
+        // Wait for directory initialization to complete
+        await this.initPromise;
+        
         // If we don't have a path yet, find it
         if (!this.easyrsaPath) {
           this.easyrsaPath = await this.findEasyRsaPath();
@@ -408,6 +449,9 @@ class CertificateManager {
     
     async generateClientCertificate(clientName) {
       try {
+        // Wait for directory initialization to complete
+        await this.initPromise;
+        
         // If we don't have a path yet, find it
         if (!this.easyrsaPath) {
           this.easyrsaPath = await this.findEasyRsaPath();

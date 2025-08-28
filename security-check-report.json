@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-08-25T19:54:18.082Z",
+  "checks": [
+    {
+      "name": "Non-root user",
+      "status": "PASS",
+      "message": "Container runs as non-root user"
+    },
+    {
+      "name": "No new privileges",
+      "status": "WARN",
+      "message": "No new privileges not configured"
+    },
+    {
+      "name": "Capabilities dropped",
+      "status": "PASS",
+      "message": "Capabilities dropped configured"
+    },
+    {
+      "name": "Temporary filesystem",
+      "status": "PASS",
+      "message": "Temporary filesystem configured"
+    },
+    {
+      "name": "Secret scanning",
+      "status": "PASS",
+      "message": "No obvious secrets found in source code"
+    }
+  ]
+}

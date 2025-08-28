@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family VPN Server - Login</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Family VPN Server</h1>
+                <p>Secure access to your private network</p>
+            </div>
+            
+            <form id="loginForm" class="login-form" novalidate>
+                <input type="hidden" name="csrfToken" value="{{csrfToken}}" id="csrfToken">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required 
+                        autocomplete="username"
+                        aria-describedby="username-error"
+                    >
+                    <div class="error-message" id="username-error" role="alert"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        autocomplete="current-password"
+                        aria-describedby="password-error"
+                    >
+                    <div class="error-message" id="password-error" role="alert"></div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="login-btn" id="loginBtn">
+                        <span class="btn-text">Sign In</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </div>
+                
+                <div class="form-message" id="formMessage" role="alert">{{error}}</div>
+            </form>
+        </div>
+    </div>
+    <script src="/js/login.js"></script>
+</body>
+</html>

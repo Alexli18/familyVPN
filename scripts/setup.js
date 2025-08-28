@@ -93,16 +93,17 @@ async function runSetup() {
       }
     }
     
-    // Create sample OpenVPN config if it doesn't exist
+    // Create hardened OpenVPN config if it doesn't exist
     const configFile = path.join(configDir, 'openvpn.conf');
     try {
       if (!fs.existsSync(configFile)) {
-        console.log(`Creating sample OpenVPN config at ${configFile}`);
-        const sampleConfig = generateSampleConfig(certDir);
-        await fs.writeFile(configFile, sampleConfig);
-        console.log(`✅ Sample config created`);
+        console.log(`Creating hardened OpenVPN config at ${configFile}`);
+        const hardenedConfig = generateSampleConfig(certDir);
+        await fs.writeFile(configFile, hardenedConfig);
+        console.log(`✅ Hardened OpenVPN config created`);
       } else {
         console.log(`✅ OpenVPN config already exists at ${configFile}`);
+        console.log(`   To apply security hardening, run: npm run harden-config`);
       }
     } catch (err) {
       console.error(`❌ Could not create config file: ${err.message}`);
@@ -178,40 +179,20 @@ async function runSetup() {
 }
 
 function generateSampleConfig(certDir) {
-  // Generate a basic OpenVPN server config
-  if (platform === 'win32') {
-    certDir = certDir.replace(/\\/g, '\\\\');
-  }
+  // Generate a hardened OpenVPN server config
+  const OpenVPNSecurityConfig = require('../src/utils/openvpn-security-config');
+  const logger = require('../src/services/logging-service');
   
-  return `# OpenVPN Server Configuration
-port 1194
-proto udp
-dev tun
-
-# Certificates
-ca ${path.join(certDir, 'ca.crt')}
-cert ${path.join(certDir, 'server.crt')}
-key ${path.join(certDir, 'server.key')}
-dh ${path.join(certDir, 'dh.pem')}
-
-# Network configuration
-server 10.8.0.0 255.255.255.0
-push "redirect-gateway def1 bypass-dhcp"
-push "dhcp-option DNS 8.8.8.8"
-push "dhcp-option DNS 8.8.4.4"
-
-# Performance
-keepalive 10 120
-comp-lzo
-
-# Security
-${platform !== 'win32' ? 'user nobody\ngroup nogroup' : '# Windows does not support user/group options'}
-persist-key
-persist-tun
-
-# Logging
-verb 3
-`;
+  const securityConfig = new OpenVPNSecurityConfig({}, logger);
+  
+  return securityConfig.generateHardenedConfig(certDir, {
+    port: 1194,
+    protocol: 'udp',
+    subnet: '10.8.0.0',
+    netmask: '255.255.255.0',
+    dnsServers: ['1.1.1.1', '1.0.0.1'], // Secure DNS servers
+    logDir: platform === 'win32' ? 'C:\\ProgramData\\OpenVPN\\log' : '/var/log/openvpn'
+  });
 }
 
 async function checkEasyRSA() {

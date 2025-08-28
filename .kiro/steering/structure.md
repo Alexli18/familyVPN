@@ -22,7 +22,7 @@ Automation scripts for setup, certificate management, and maintenance:
 - `sign-server-cert.js` - Server certificate management
 - `clean.js` - Cleanup utility for certificates and configs
 - `test-easyrsa.js` - Easy-RSA functionality testing
-- `setup-server.sh` - Server setup automation
+
 
 ## Easy-RSA (`easy-rsa/`)
 PKI management toolkit with documentation and certificate templates:

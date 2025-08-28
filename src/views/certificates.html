@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family VPN Server - Certificate Management</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="certificates-page">
+    <div class="certificates-container">
+        <!-- Header -->
+        <header class="certificates-header">
+            <div class="header-content">
+                <h1>Certificate Management</h1>
+                <div class="header-actions">
+                    <span class="user-info">Welcome, <span id="username">{{username}}</span></span>
+                    <button type="button" class="logout-btn" id="logoutBtn">
+                        <span class="logout-icon">🚪</span>
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="certificates-main">
+            <!-- Certificate Generation Section -->
+            <section class="certificate-generation">
+                <div class="section-header">
+                    <h2>Generate New Certificate</h2>
+                    <p>Create a new client certificate for VPN access</p>
+                </div>
+
+                <form id="certificateForm" class="certificate-form" novalidate>
+                    <input type="hidden" name="csrfToken" value="{{csrfToken}}" id="csrfToken">
+                    <div class="form-group">
+                        <label for="clientName">Client Name</label>
+                        <input 
+                            type="text" 
+                            id="clientName" 
+                            name="clientName" 
+                            required 
+                            placeholder="Enter client name (e.g., john-laptop)"
+                            autocomplete="off"
+                            aria-describedby="clientName-error clientName-help"
+                            maxlength="50"
+                        >
+                        <div class="input-help" id="clientName-help">
+                            Use only letters, numbers, hyphens, and underscores (3-50 characters)
+                        </div>
+                        <div class="error-message" id="clientName-error" role="alert"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="generate-btn" id="generateBtn">
+                            <span class="btn-text">Generate Certificate</span>
+                            <span class="btn-spinner" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Certificate List Section -->
+            <section class="certificate-list">
+                <div class="section-header">
+                    <h2>Existing Certificates</h2>
+                    <div class="list-actions">
+                        <button type="button" class="refresh-btn" id="refreshBtn" title="Refresh certificate list">
+                            <span class="refresh-icon">🔄</span>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading State -->
+                <div class="loading-state" id="loadingState">
+                    <div class="loading-spinner"></div>
+                    <p>Loading certificates...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <div class="empty-icon">📜</div>
+                    <h3>No Certificates Found</h3>
+                    <p>Generate your first client certificate to get started with VPN access.</p>
+                </div>
+
+                <!-- Certificate Table -->
+                <div class="certificate-table-container" id="certificateTableContainer" style="display: none;">
+                    <table class="certificate-table" id="certificateTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Expires</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="certificateTableBody">
+                            <!-- Certificate rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Notification System -->
+        <div class="notification-container" id="notificationContainer">
+            <!-- Notifications will be inserted here -->
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div class="modal-overlay" id="modalOverlay" style="display: none;">
+            <div class="modal" id="confirmationModal">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Confirm Action</h3>
+                    <button type="button" class="modal-close" id="modalClose" aria-label="Close modal">×</button>
+                </div>
+                <div class="modal-body">
+                    <p id="modalMessage">Are you sure you want to perform this action?</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="modal-btn modal-btn-secondary" id="modalCancel">Cancel</button>
+                    <button type="button" class="modal-btn modal-btn-primary" id="modalConfirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/certificates.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page Responsive Design Test</title>
+    <link rel="stylesheet" href="../src/public/css/styles.css">
+    <style>
+        /* Test viewport indicators */
+        .viewport-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        .test-controls {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        
+        .test-controls button {
+            margin: 2px;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        .test-controls button:hover {
+            background: #f0f0f0;
+        }
+        
+        .test-controls button.active {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="viewport-indicator" id="viewportIndicator">
+        Loading...
+    </div>
+    
+    <div class="test-controls">
+        <div>Test Viewports:</div>
+        <button onclick="setViewport(375, 667)" data-size="mobile-portrait">Mobile Portrait</button>
+        <button onclick="setViewport(667, 375)" data-size="mobile-landscape">Mobile Landscape</button>
+        <button onclick="setViewport(768, 1024)" data-size="tablet-portrait">Tablet Portrait</button>
+        <button onclick="setViewport(1024, 768)" data-size="tablet-landscape">Tablet Landscape</button>
+        <button onclick="setViewport(1200, 800)" data-size="desktop">Desktop</button>
+        <button onclick="resetViewport()" data-size="reset">Reset</button>
+    </div>
+
+    <!-- Login page content -->
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Family VPN Server</h1>
+                <p>Secure access to your private network</p>
+            </div>
+            
+            <form id="loginForm" class="login-form" novalidate>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        required 
+                        autocomplete="username"
+                        aria-describedby="username-error"
+                        placeholder="Enter your username"
+                    >
+                    <div class="error-message" id="username-error" role="alert"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        autocomplete="current-password"
+                        aria-describedby="password-error"
+                        placeholder="Enter your password"
+                    >
+                    <div class="error-message" id="password-error" role="alert"></div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="login-btn" id="loginBtn">
+                        <span class="btn-text">Sign In</span>
+                        <span class="btn-spinner" aria-hidden="true"></span>
+                    </button>
+                </div>
+                
+                <div class="form-message" id="formMessage" role="alert"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Viewport testing functions
+        function updateViewportIndicator() {
+            const indicator = document.getElementById('viewportIndicator');
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            let breakpoint = 'Mobile';
+            if (width >= 1024) breakpoint = 'Desktop';
+            else if (width >= 768) breakpoint = 'Tablet';
+            
+            indicator.textContent = `${width}x${height} (${breakpoint})`;
+        }
+        
+        function setViewport(width, height) {
+            // This would work in a browser extension or testing environment
+            // For manual testing, just update the indicator
+            updateViewportIndicator();
+            
+            // Highlight active button
+            document.querySelectorAll('.test-controls button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            console.log(`Testing viewport: ${width}x${height}`);
+        }
+        
+        function resetViewport() {
+            document.querySelectorAll('.test-controls button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            updateViewportIndicator();
+        }
+        
+        // Update indicator on resize
+        window.addEventListener('resize', updateViewportIndicator);
+        
+        // Initialize
+        updateViewportIndicator();
+        
+        // Demo form validation
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('loginBtn');
+            const message = document.getElementById('formMessage');
+            
+            // Demo loading state
+            btn.classList.add('loading');
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+                
+                message.textContent = 'Demo: Login form submitted successfully!';
+                message.className = 'form-message success';
+                message.style.display = 'block';
+                
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 3000);
+            }, 2000);
+        });
+        
+        // Demo validation
+        document.getElementById('username').addEventListener('blur', function() {
+            const value = this.value.trim();
+            const error = document.getElementById('username-error');
+            
+            if (!value) {
+                error.textContent = 'Username is required';
+                error.style.display = 'block';
+            } else if (value.length < 3) {
+                error.textContent = 'Username must be at least 3 characters';
+                error.style.display = 'block';
+            } else {
+                error.style.display = 'none';
+            }
+        });
+        
+        document.getElementById('password').addEventListener('blur', function() {
+            const value = this.value;
+            const error = document.getElementById('password-error');
+            
+            if (!value) {
+                error.textContent = 'Password is required';
+                error.style.display = 'block';
+            } else if (value.length < 6) {
+                error.textContent = 'Password must be at least 6 characters';
+                error.style.display = 'block';
+            } else {
+                error.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
