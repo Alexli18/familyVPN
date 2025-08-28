@@ -90,8 +90,17 @@ docker-compose.override.yml
 # Backup files
 *.bak
 *.backup
+*.conf.backup
 backup_*/
 backups/
+certificate-backups/
+
+# Local validation/test reports
+documentation-validation-report.json
+final-validation-report.json
+workflow-test-report.json
+security-check-report.json
+certificate-backups/*.tar.gz
 
 # Production secrets
 secrets/
