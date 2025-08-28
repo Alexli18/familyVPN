@@ -1,7 +1,0 @@
-{
-  "pki": "30977a1c8349c0a034b4400555f84e9a3f0f5bd3d44482e64ca96544e1a78556",
-  "certificates": "16e15ff4da15dd7a2625bb0375e990c0f1147f39f925ffd7fbc7dbacd6ffc5b8",
-  "config/.env": "7eac86f90d44618805dbd19ebe4ec063c55ba15b1f75fc30021b161384fb88cf",
-  "config/.env.example": "d0572dd1fd9d486c5558f32092753d7863d0f8274b6ab05e61fd7f5796b6b37b",
-  "config/package.json": "be7a49ecf1627a3d6183d34fc45524c8009d5b56254acbe96435fa0914d77fb7"
-}
