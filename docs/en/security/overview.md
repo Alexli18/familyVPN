@@ -53,15 +53,6 @@ The Family VPN Server implements a comprehensive multi-layered security architec
 
 ## Key Security Features
 
-### Eliminated Vulnerabilities
-
-The system addresses critical security issues from the original implementation:
-
-- ❌ **Removed**: Hardcoded credentials (`username === 'root' && password === 'paparol@42'`)
-- ❌ **Removed**: Plain text password storage
-- ❌ **Removed**: Weak session management
-- ❌ **Removed**: Unprotected API endpoints
-
 ### Implemented Security Controls
 
 - ✅ **bcrypt Password Hashing**: Industry-standard password protection
